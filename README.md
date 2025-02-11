@@ -2,6 +2,12 @@
 
 A lightweight, server-free solution for cross-origin Nostr event signing in the browser. This provides a simple alternative to NIP-46 that works on both desktop and mobile browsers without requiring always-on relays or complex connection flows.
 
+
+
+https://github.com/user-attachments/assets/45b15299-035b-4fc7-9610-b189aed4ba6b
+
+
+
 ## Quick Start
 
 ```bash
