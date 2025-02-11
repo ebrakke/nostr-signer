@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SDK Test App</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f9fafb;
+        }
+
+        h1 {
+            color: #1f2937;
+            margin-bottom: 24px;
+        }
+
+        button {
+            background-color: #2563eb;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.2s;
+        }
+
+        button:hover {
+            background-color: #1d4ed8;
+        }
+
+        #pubkey {
+            margin: 16px 0;
+            padding: 12px;
+            background-color: #e5e7eb;
+            border-radius: 6px;
+            font-family: monospace;
+            word-break: break-all;
+        }
+
+        .input-group {
+            margin: 20px 0;
+            display: flex;
+            gap: 8px;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            padding: 8px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #2563eb;
+            box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+        }
+
+        #output {
+            margin-top: 20px;
+            padding: 16px;
+            background: white;
+            border-radius: 8px;
+            white-space: pre-wrap;
+            border: 1px solid #e5e7eb;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            font-family: monospace;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .container {
+            background-color: white;
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        #relays {
+            margin: 16px 0;
+        }
+
+        .relay-list {
+            list-style: none;
+            padding: 0;
+            margin: 8px 0;
+        }
+
+        .relay-item {
+            background-color: #e5e7eb;
+            padding: 8px 12px;
+            margin: 4px 0;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 14px;
+            word-break: break-all;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>Nostr Signer Test App</h1>
+        <button onclick="connect()">Connect to Signer</button>
+        <div id="pubkey"></div>
+        <div id="relays">
+            <div class="relay-list"></div>
+        </div>
+        <div id="event">
+        </div>
+        <button onclick="publishEvent()">Publish Event</button>
+        <div id="published"></div>
+        <div class="input-group">
+            <input type="text" id="messageInput" placeholder="Enter message to sign" value="Hello, World!">
+            <button onclick="handleSign()">Sign Message</button>
+        </div>
+    </div>
+</body>
+<script src="nostr-signer.js"></script>
+<script src="https://unpkg.com/nostr-tools/lib/nostr.bundle.js"></script>
+<script>
+    const url = 'https://nostr-signer.pages.dev';
+    // const url = 'http://localhost:5173';
+    const nostr = new NostrSigner.Nostr(url);
+    let relayPool = null;
+    let relays = [];
+    let event = null;
+
+    async function connect() {
+        await nostr.connect();
+        const pubkey = await nostr.getPublicKey();
+        const npub = NostrTools.nip19.npubEncode(pubkey);
+        const relayObjects = await nostr.getRelays();
+        relays = Object.keys(relayObjects).filter(key => relayObjects[key].write);
+        document.getElementById('pubkey').textContent = `Hello, ${npub}`;
+        relayPool = new NostrTools.SimplePool();
+
+        const relayList = document.querySelector('.relay-list');
+        relayList.innerHTML = '';
+        if (relays.length === 0) {
+            relayList.innerHTML = '<div class="relay-item">No relays connected</div>';
+        } else {
+            relays.forEach(url => {
+                const relayItem = document.createElement('div');
+                relayItem.className = 'relay-item';
+                relayItem.textContent = url;
+                relayList.appendChild(relayItem);
+            });
+        }
+    }
+
+    async function handleSign() {
+        const unsigned = {
+            kind: 1,
+            content: document.getElementById('messageInput').value,
+            tags: [],
+            created_at: Math.floor(Date.now() / 1000),
+        }
+        const signed = await nostr.signEvent(unsigned);
+        document.getElementById('event').textContent = JSON.stringify(signed);
+        event = signed;
+    }
+
+    async function publishEvent() {
+        const relays = await nostr.getRelays();
+        const relayUrls = Object.keys(relays).filter(key => relays[key].write);
+        const relayPool = new NostrTools.SimplePool();
+        const published = await relayPool.publish(relayUrls, event);
+        document.getElementById('published').textContent = `Published event ${event.id}`;
+    }
+</script>
+
+</html>
